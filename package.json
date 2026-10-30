@@ -1,0 +1,20 @@
+{
+  "name": "qa-agents",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Always-on QA agents for Crucible Lab apps and clients. Playwright drivers, escape tests, deduplicated GitHub issues.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test:engine": "node --test engine/__tests__/*.test.js",
+    "qa": "playwright test",
+    "qa:watchsafe": "QA_APP=watchsafe playwright test",
+    "qa:watchsafe:tablets": "QA_APP=watchsafe playwright test --project='ipad*' --project='android-tablet*'",
+    "qa:watchsafe:public": "QA_APP=watchsafe playwright test apps/watchsafe/tests/public-site.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
