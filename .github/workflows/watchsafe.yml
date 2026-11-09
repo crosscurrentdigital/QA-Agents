@@ -37,8 +37,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run test:engine
       - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:engine
       - name: Run WatchSafe checks
         run: npx playwright test
       - name: Run summary
