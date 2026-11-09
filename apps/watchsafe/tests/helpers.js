@@ -42,7 +42,12 @@ export async function authorizePlayback(request, childId, videoId, { token = qaT
 export async function openChildAndPlay(page) {
   await page.goto(`/child/${config.qa.childId}`, { waitUntil: 'domcontentloaded' });
   const firstVideo = page.getByRole('button', { name: /^Play video:/ }).first();
-  await firstVideo.waitFor({ timeout: 30_000 });
+  try {
+    await firstVideo.waitFor({ timeout: 20_000 });
+  } catch (err) {
+    const text = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+    throw new Error(`Child view showed no videos. URL: ${page.url()} | Page text: ${text}`, { cause: err });
+  }
   await firstVideo.click();
   const iframe = page.locator('iframe[src*="youtube"]').first();
   await iframe.waitFor({ timeout: 30_000 });

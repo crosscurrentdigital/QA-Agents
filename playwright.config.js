@@ -8,7 +8,10 @@ export default defineConfig({
   testDir: `./apps/${app}/tests`,
   globalSetup: `./apps/${app}/global-setup.js`,
   outputDir: 'qa-results/artifacts',
-  timeout: 120_000,
+  timeout: 60_000,
+  // Stop the run early when something systemic is broken (e.g. the child view never loads),
+  // instead of letting every test time out for 40 minutes.
+  maxFailures: process.env.CI ? 8 : 0,
   expect: { timeout: 15_000 },
   // Production with real accounts: keep load low and runs predictable.
   fullyParallel: false,
