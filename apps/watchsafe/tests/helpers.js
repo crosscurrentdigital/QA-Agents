@@ -75,6 +75,9 @@ export async function enterKidsMode(page) {
 export async function openChildAndPlay(page) {
   await enterKidsMode(page);
   const firstVideo = page.getByRole('button', { name: /^Play video:/ }).first();
+  // Kids Mode opens on the Channels tab; the video grid is on the Videos tab.
+  const videosTab = page.getByRole('tab', { name: /^videos$/i }).or(page.getByRole('button', { name: /^videos$/i })).first();
+  if (await videosTab.isVisible({ timeout: 10_000 }).catch(() => false)) await videosTab.click();
   try {
     await firstVideo.waitFor({ timeout: 20_000 });
   } catch (err) {
