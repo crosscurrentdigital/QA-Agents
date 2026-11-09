@@ -71,13 +71,18 @@ export async function enterKidsMode(page) {
   await page.waitForURL(new RegExp(`/child/${config.qa.childId}`), { timeout: 20_000 });
 }
 
+/** Kids Mode opens on the Channels tab; the video grid is on the Videos tab. */
+export async function openVideosTab(page) {
+  const videosTab = page.getByRole('tab', { name: /^videos$/i }).or(page.getByRole('button', { name: /^videos$/i })).first();
+  await videosTab.waitFor({ timeout: 15_000 }).catch(() => {});
+  if (await videosTab.isVisible().catch(() => false)) await videosTab.click();
+}
+
 /** Open the QA child's view and start the first approved video. Returns the player iframe locator. */
 export async function openChildAndPlay(page) {
   await enterKidsMode(page);
   const firstVideo = page.getByRole('button', { name: /^Play video:/ }).first();
-  // Kids Mode opens on the Channels tab; the video grid is on the Videos tab.
-  const videosTab = page.getByRole('tab', { name: /^videos$/i }).or(page.getByRole('button', { name: /^videos$/i })).first();
-  if (await videosTab.isVisible({ timeout: 10_000 }).catch(() => false)) await videosTab.click();
+  await openVideosTab(page);
   try {
     await firstVideo.waitFor({ timeout: 20_000 });
   } catch (err) {

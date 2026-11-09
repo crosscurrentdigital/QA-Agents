@@ -3,7 +3,7 @@ import { recordFinding } from '../../../engine/findings.js';
 import { isTablet } from '../../../engine/devices.js';
 import { parseEmbed } from '../../../engine/escape.js';
 import { smallTapTargets, hasHorizontalOverflow, rotate, MIN_TAP_TARGET_PX } from '../../../engine/layout.js';
-import { config, requireQaAccount, enterKidsMode, openChildAndPlay } from './helpers.js';
+import { config, requireQaAccount, enterKidsMode, openVideosTab, openChildAndPlay } from './helpers.js';
 
 // Tablet checks. Younger kids mostly watch on tablets, tap more and tap by accident.
 
@@ -41,6 +41,7 @@ test.describe('Tablet checks', () => {
 
   test('child view fits the tablet and buttons are big enough for small fingers', async ({ page }) => {
     await enterKidsMode(page);
+    await openVideosTab(page);
     await page.getByRole('button', { name: /^Play video:/ }).first().waitFor({ timeout: 30_000 });
     if (await hasHorizontalOverflow(page)) {
       recordFinding(test.info(), {
