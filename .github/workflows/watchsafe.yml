@@ -1,0 +1,52 @@
+name: WatchSafe QA
+
+on:
+  schedule:
+    - cron: '0 12 * * *' # daily, 6am Mountain
+  workflow_dispatch:
+    inputs:
+      devices:
+        description: 'tablet, phone, or device names (blank = all, tablets first)'
+        required: false
+        default: ''
+
+concurrency:
+  group: watchsafe-qa
+  cancel-in-progress: false
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      QA_APP: watchsafe
+      QA_DEVICES: ${{ inputs.devices }}
+      QA_WATCHSAFE_PARENT_EMAIL: ${{ secrets.QA_WATCHSAFE_PARENT_EMAIL }}
+      QA_WATCHSAFE_PARENT_PASSWORD: ${{ secrets.QA_WATCHSAFE_PARENT_PASSWORD }}
+      QA_WATCHSAFE_CHILD_ID: ${{ secrets.QA_WATCHSAFE_CHILD_ID }}
+      QA_WATCHSAFE_APPROVED_VIDEO_ID: ${{ secrets.QA_WATCHSAFE_APPROVED_VIDEO_ID }}
+      QA_WATCHSAFE_OTHER_FAMILY_CHILD_ID: ${{ secrets.QA_WATCHSAFE_OTHER_FAMILY_CHILD_ID }}
+      # Issues go to the WatchSafe repo, so this needs a token with issues:write there.
+      GITHUB_TOKEN: ${{ secrets.QA_ISSUES_TOKEN }}
+      QA_REPORT_REPO: crosscurrentdigital/WatchSafe
+      GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:engine
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Run WatchSafe checks
+        run: npx playwright test
+      - name: Run summary
+        if: always()
+        run: cat qa-results/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: watchsafe-qa-results
+          path: qa-results/
+          retention-days: 14
