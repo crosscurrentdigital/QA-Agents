@@ -45,7 +45,18 @@ export async function authorizePlayback(request, childId, videoId, { token = qaT
  */
 export async function enterKidsMode(page) {
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /watch now/i }).first().click({ timeout: 20_000 });
+  const watchNow = page.getByRole('button', { name: /watch now/i }).first();
+  const skip = page.getByRole('button', { name: /skip this step|not now/i }).first();
+  const next = page.getByRole('button', { name: /^continue|go to dashboard|finish/i }).first();
+  // The dashboard can bounce to a leftover onboarding step (e.g. Curated Lists); finish it like a parent.
+  for (let i = 0; i < 6; i++) {
+    await watchNow.or(skip).or(next).first().waitFor({ timeout: 20_000 });
+    if (await watchNow.isVisible().catch(() => false)) break;
+    if (await skip.isVisible().catch(() => false)) await skip.click();
+    else await next.click();
+    await page.waitForTimeout(1000);
+  }
+  await watchNow.click({ timeout: 20_000 });
   await page.waitForURL(new RegExp(`/child/${config.qa.childId}`), { timeout: 20_000 });
 }
 
