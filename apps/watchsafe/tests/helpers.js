@@ -56,6 +56,17 @@ export async function enterKidsMode(page) {
     else await next.click();
     await page.waitForTimeout(1000);
   }
+  // A family still on the default PIN gets a "Create a PIN" dialog over the dashboard. Set the QA PIN once.
+  const pinDialog = page.locator('[aria-labelledby="pin-setup-title"]');
+  if (await pinDialog.isVisible().catch(() => false)) {
+    const pin = process.env.QA_WATCHSAFE_PARENT_PIN || '13579';
+    for (const label of ['Continue', 'Set PIN']) {
+      for (let i = 0; i < 5; i++) await pinDialog.getByLabel(`PIN digit ${i + 1}`).fill(pin[i]);
+      await pinDialog.getByRole('button', { name: label, exact: true }).click();
+      await page.waitForTimeout(800);
+    }
+    await pinDialog.waitFor({ state: 'hidden', timeout: 15_000 });
+  }
   await watchNow.click({ timeout: 20_000 });
   await page.waitForURL(new RegExp(`/child/${config.qa.childId}`), { timeout: 20_000 });
 }
