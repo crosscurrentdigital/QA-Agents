@@ -38,9 +38,20 @@ export async function authorizePlayback(request, childId, videoId, { token = qaT
   return { status: res.status(), body };
 }
 
+/**
+ * Enter Kids Mode the way a parent does: dashboard -> "Watch Now" on the QA child's card.
+ * A typed /child/<id> URL is (correctly) bounced to /login unless the child is active in Kids Mode,
+ * so tests must go through the dashboard.
+ */
+export async function enterKidsMode(page) {
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /watch now/i }).first().click({ timeout: 20_000 });
+  await page.waitForURL(new RegExp(`/child/${config.qa.childId}`), { timeout: 20_000 });
+}
+
 /** Open the QA child's view and start the first approved video. Returns the player iframe locator. */
 export async function openChildAndPlay(page) {
-  await page.goto(`/child/${config.qa.childId}`, { waitUntil: 'domcontentloaded' });
+  await enterKidsMode(page);
   const firstVideo = page.getByRole('button', { name: /^Play video:/ }).first();
   try {
     await firstVideo.waitFor({ timeout: 20_000 });

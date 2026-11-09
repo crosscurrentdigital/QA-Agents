@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { recordFinding } from '../../../engine/findings.js';
 import { watchForEscapes, parseEmbed, embedProblems } from '../../../engine/escape.js';
-import { config, requireQaAccount, openChildAndPlay, playerCommand, botCheckShowing } from './helpers.js';
+import { config, requireQaAccount, enterKidsMode, openChildAndPlay, playerCommand, botCheckShowing } from './helpers.js';
 
 // The escape test: from the child view, try every door YouTube's player leaves open and
 // prove none of them leads out of WatchSafe. Runs on every device project, tablets first.
@@ -124,7 +124,7 @@ test.describe('Child view escape test', () => {
   });
 
   test('no playlist player appears anywhere in the child view', async ({ page }) => {
-    await page.goto(`/child/${config.qa.childId}`, { waitUntil: 'networkidle' });
+    await enterKidsMode(page);
     const srcs = await page.locator('iframe').evaluateAll((els) => els.map((e) => e.src));
     const playlistEmbeds = srcs.filter((s) => /videoseries|[?&]list=/.test(s));
     if (playlistEmbeds.length) {
