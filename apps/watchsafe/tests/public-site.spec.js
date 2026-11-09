@@ -30,6 +30,9 @@ test.describe('Public site', () => {
 
   test('pricing page shows the real plan prices', async ({ page }) => {
     await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
+    // The pricing page renders client-side, so wait for the first price before reading the text.
+    const firstPrice = Object.values(config.prices)[0];
+    await page.getByText(firstPrice).first().waitFor({ timeout: 15_000 }).catch(() => {});
     const text = await page.locator('body').innerText();
     for (const [plan, price] of Object.entries(config.prices)) {
       if (!text.includes(price)) {
