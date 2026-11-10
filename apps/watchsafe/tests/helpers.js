@@ -103,5 +103,13 @@ export async function playerCommand(iframe, func, args = []) {
 }
 
 export async function botCheckShowing(page) {
-  return page.getByText(/confirm you.?re not a bot|sign in to confirm/i).first().isVisible().catch(() => false);
+  // The prompt lives inside YouTube's cross-origin iframe, so page text alone can't see it.
+  // Check the app's own bot-detection banner and every frame's text.
+  const re = /confirm you.?re not a bot|sign in to confirm|YouTube Bot Detection/i;
+  if (await page.getByText(re).first().isVisible().catch(() => false)) return true;
+  for (const frame of page.frames()) {
+    const text = await frame.locator('body').innerText({ timeout: 2000 }).catch(() => '');
+    if (re.test(text)) return true;
+  }
+  return false;
 }
