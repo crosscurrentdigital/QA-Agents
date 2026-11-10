@@ -20,12 +20,16 @@ export default class QaReporter {
     const failed = result.status === 'failed' || result.status === 'timedOut';
     if (failed && !recorded.some((f) => f.severity === 'p0' || f.severity === 'p1')) {
       const title = `Check failed: ${test.title}`;
-      const check = `test:${test.titlePath().slice(1).join('/')}`;
+      // titlePath = ['', project, file, ...describes, title]; leave the device out so one bug = one issue.
+      const check = `test:${test.titlePath().slice(2).join('/')}`;
       this.findings.push({
         app: this.app,
         check,
         subject: '',
-        severity: 'p1',
+        // A bare test failure is often the harness (selector, timing, account setup), not an app bug.
+        // It goes in the run summary; only explicit findings (recordFinding) become issues,
+        // unless QA_FILE_TEST_FAILURES=1.
+        severity: process.env.QA_FILE_TEST_FAILURES === '1' ? 'p1' : 'check',
         title,
         details: '```\n' + (result.error?.message || 'No error message').slice(0, 1500) + '\n```',
         device: project,

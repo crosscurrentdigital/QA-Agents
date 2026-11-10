@@ -27,6 +27,18 @@ export default async function globalSetup() {
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.waitForURL(/\/dashboard|\/onboarding|\/child\//, { timeout: 60_000 });
 
+  // Finish any leftover onboarding steps (e.g. "Add content with Curated Lists") the way a parent
+  // would, so the dashboard and Kids Mode are reachable. Skipping persists server-side.
+  for (let i = 0; i < 6 && /\/onboarding/.test(page.url()); i++) {
+    const skip = page.getByRole('button', { name: /skip this step|not now/i }).first();
+    const next = page.getByRole('button', { name: /continue|go to dashboard|finish|done/i }).first();
+    if (await skip.isVisible().catch(() => false)) await skip.click();
+    else if (await next.isVisible().catch(() => false)) await next.click();
+    else break;
+    await page.waitForTimeout(1500);
+  }
+  if (/\/onboarding/.test(page.url())) console.warn(`[qa] QA parent is still in onboarding at ${page.url()}`);
+
   const token = await page.evaluate(() => localStorage.getItem('auth_token'));
   if (!token) throw new Error('[qa] Signed in but no auth_token in localStorage; the login flow changed.');
   await page.context().storageState({ path: STORAGE_STATE });

@@ -38,11 +38,57 @@ export async function authorizePlayback(request, childId, videoId, { token = qaT
   return { status: res.status(), body };
 }
 
+/**
+ * Enter Kids Mode the way a parent does: dashboard -> "Watch Now" on the QA child's card.
+ * A typed /child/<id> URL is (correctly) bounced to /login unless the child is active in Kids Mode,
+ * so tests must go through the dashboard.
+ */
+export async function enterKidsMode(page) {
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+  const watchNow = page.getByRole('button', { name: /watch now/i }).first();
+  const skip = page.getByRole('button', { name: /skip this step|not now/i }).first();
+  const next = page.getByRole('button', { name: /^continue|go to dashboard|finish/i }).first();
+  // The dashboard can bounce to a leftover onboarding step (e.g. Curated Lists); finish it like a parent.
+  for (let i = 0; i < 6; i++) {
+    await watchNow.or(skip).or(next).first().waitFor({ timeout: 20_000 });
+    if (await watchNow.isVisible().catch(() => false)) break;
+    if (await skip.isVisible().catch(() => false)) await skip.click();
+    else await next.click();
+    await page.waitForTimeout(1000);
+  }
+  // A family still on the default PIN gets a "Create a PIN" dialog over the dashboard. Set the QA PIN once.
+  const pinDialog = page.locator('[aria-labelledby="pin-setup-title"]');
+  if (await pinDialog.isVisible().catch(() => false)) {
+    const pin = process.env.QA_WATCHSAFE_PARENT_PIN || '13579';
+    for (const label of ['Continue', 'Set PIN']) {
+      for (let i = 0; i < 5; i++) await pinDialog.getByLabel(`PIN digit ${i + 1}`).fill(pin[i]);
+      await pinDialog.getByRole('button', { name: label, exact: true }).click();
+      await page.waitForTimeout(800);
+    }
+    await pinDialog.waitFor({ state: 'hidden', timeout: 15_000 });
+  }
+  await watchNow.click({ timeout: 20_000 });
+  await page.waitForURL(new RegExp(`/child/${config.qa.childId}`), { timeout: 20_000 });
+}
+
+/** Kids Mode opens on the Channels tab; the video grid is on the Videos tab. */
+export async function openVideosTab(page) {
+  const videosTab = page.getByRole('tab', { name: /^videos$/i }).or(page.getByRole('button', { name: /^videos$/i })).first();
+  await videosTab.waitFor({ timeout: 15_000 }).catch(() => {});
+  if (await videosTab.isVisible().catch(() => false)) await videosTab.click();
+}
+
 /** Open the QA child's view and start the first approved video. Returns the player iframe locator. */
 export async function openChildAndPlay(page) {
-  await page.goto(`/child/${config.qa.childId}`, { waitUntil: 'domcontentloaded' });
+  await enterKidsMode(page);
   const firstVideo = page.getByRole('button', { name: /^Play video:/ }).first();
-  await firstVideo.waitFor({ timeout: 30_000 });
+  await openVideosTab(page);
+  try {
+    await firstVideo.waitFor({ timeout: 20_000 });
+  } catch (err) {
+    const text = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+    throw new Error(`Child view showed no videos. URL: ${page.url()} | Page text: ${text}`, { cause: err });
+  }
   await firstVideo.click();
   const iframe = page.locator('iframe[src*="youtube"]').first();
   await iframe.waitFor({ timeout: 30_000 });
