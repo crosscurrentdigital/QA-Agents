@@ -10,7 +10,12 @@ test.describe('Public site', () => {
   for (const path of config.publicPages) {
     test(`${path} loads without errors`, async ({ page }) => {
       const errors = [];
-      page.on('pageerror', (e) => errors.push(e.message));
+      page.on('pageerror', (e) => {
+        // Browsers log this when page code touches YouTube's cross-origin embed (e.g. /about video).
+        // It's the browser blocking access as designed, not a site bug (#473).
+        if (/accessing a (cross-origin )?frame with origin "https:\/\/www\.youtube(-nocookie)?\.com"/i.test(e.message)) return;
+        errors.push(e.message);
+      });
       const res = await page.goto(path, { waitUntil: 'domcontentloaded' });
       expect(res?.status(), `${path} status`).toBeLessThan(400);
       await expect(page.locator('body')).not.toBeEmpty();
