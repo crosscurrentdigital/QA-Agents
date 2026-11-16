@@ -31,9 +31,14 @@ test.describe('Public site', () => {
   test('pricing page shows the real plan prices', async ({ page }) => {
     await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
     // The pricing page renders client-side, so wait for the first price before reading the text.
+    // Poll the body text: the lazy-loaded page shows "Loading..." first, and a single waitFor
+    // could return early across the remount, so the check read the placeholder (false #440).
     const firstPrice = Object.values(config.prices)[0];
-    await page.getByText(firstPrice).first().waitFor({ timeout: 15_000 }).catch(() => {});
-    const text = await page.locator('body').innerText();
+    let text = '';
+    await expect
+      .poll(async () => (text = await page.locator('body').innerText().catch(() => '')), { timeout: 20_000 })
+      .toContain(firstPrice)
+      .catch(() => {});
     for (const [plan, price] of Object.entries(config.prices)) {
       if (!text.includes(price)) {
         recordFinding(test.info(), {
