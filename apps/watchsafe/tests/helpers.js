@@ -113,3 +113,74 @@ export async function botCheckShowing(page) {
   }
   return false;
 }
+
+// ---- Player health -------------------------------------------------------------------------
+// YouTube's IFrame API reports state and errors to the parent page with postMessage. Collecting
+// those lets a test tell "playing" from "stuck", and name the error YouTube gave (150/153 etc.).
+
+export const YT_ERRORS = {
+  2: 'invalid video id',
+  5: 'HTML5 player error',
+  100: 'video not found or private',
+  101: 'embedding disabled by the owner',
+  150: 'embedding disabled by the owner',
+  153: 'player configuration error (no Referer sent), the Nov 8 iOS failure',
+};
+
+/** Call before the page loads the player. Collects YouTube/relay postMessages into window.__qaYT. */
+export async function monitorPlayer(page) {
+  await page.addInitScript(() => {
+    if (window.top !== window) return;
+    window.__qaYT = [];
+    window.addEventListener('message', (e) => {
+      if (!/^https:\/\/(www\.youtube(-nocookie)?\.com|watchsafe\.app)$/.test(e.origin)) return;
+      let d = e.data;
+      try { if (typeof d === 'string') d = JSON.parse(d); } catch { return; }
+      if (d && d.event) window.__qaYT.push({ t: Date.now(), event: d.event, info: d.info ?? null });
+    });
+  });
+}
+
+/** Summarise what the player has reported so far. */
+export async function playerReport(page) {
+  const events = await page.evaluate(() => window.__qaYT || []).catch(() => []);
+  let state = null;
+  let maxTime = 0;
+  let errorCode = null;
+  for (const e of events) {
+    if (e.event === 'onError') errorCode = typeof e.info === 'number' ? e.info : Number(e.info?.code ?? e.info);
+    if (e.event === 'onStateChange' && typeof e.info === 'number') state = e.info;
+    if (e.event === 'infoDelivery' && e.info) {
+      if (typeof e.info.playerState === 'number') state = e.info.playerState;
+      if (typeof e.info.currentTime === 'number') maxTime = Math.max(maxTime, e.info.currentTime);
+    }
+  }
+  return { events: events.length, state, maxTime, errorCode };
+}
+
+/** Ask the player to start reporting (the IFrame API handshake), whichever frame is the player. */
+export async function startListening(page) {
+  for (const frame of page.frames()) {
+    if (frame === page.mainFrame() || !/youtube|yt-embed/.test(frame.url())) continue;
+    const el = await frame.frameElement().catch(() => null);
+    if (el) await el.evaluate((f) => f.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*')).catch(() => {});
+  }
+}
+
+/**
+ * Wait until the video is playing (state 1 or the clock moving), YouTube reports an error, or the
+ * time runs out. Returns { outcome: 'playing'|'error'|'bot-check'|'stalled', ...report }.
+ */
+export async function waitForPlayback(page, { timeout = 30_000 } = {}) {
+  const deadline = Date.now() + timeout;
+  let report = await playerReport(page);
+  while (Date.now() < deadline) {
+    await startListening(page);
+    await page.waitForTimeout(1000);
+    report = await playerReport(page);
+    if (report.errorCode) return { outcome: 'error', ...report };
+    if (report.state === 1 || report.maxTime > 1) return { outcome: 'playing', ...report };
+    if (await botCheckShowing(page)) return { outcome: 'bot-check', ...report };
+  }
+  return { outcome: 'stalled', ...report };
+}
