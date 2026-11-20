@@ -99,7 +99,7 @@ test.describe('Video playback', () => {
     // The native app runs on capacitor://localhost and sends no http(s) Referer, so it frames
     // watchsafe.app/yt-embed.html. Reproduce that: a page with no origin framing the relay.
     await monitorPlayer(page);
-    const embed = `https://www.youtube-nocookie.com/embed/${config.qa.approvedVideoId}?enablejsapi=1&playsinline=1&rel=0&controls=1`;
+    const embed = `https://www.youtube-nocookie.com/embed/${config.qa.approvedVideoId}?enablejsapi=1&playsinline=1&rel=0&controls=1&origin=${encodeURIComponent('https://watchsafe.app')}`; // the app passes origin too; without it YouTube won't talk back
     const relay = `${config.baseURL}/yt-embed.html?src=${encodeURIComponent(embed)}`;
     await page.setContent(`<body style="margin:0"><iframe src="${relay}" referrerpolicy="no-referrer" width="480" height="270" allow="autoplay; encrypted-media"></iframe></body>`);
     const result = await waitForPlayback(page, { timeout: 25_000 });

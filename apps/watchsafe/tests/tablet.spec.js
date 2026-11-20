@@ -51,14 +51,16 @@ test.describe('Tablet checks', () => {
         title: 'Child view scrolls sideways on tablets, so part of the screen is cut off',
       });
     }
+    await page.waitForTimeout(2000); // let Kids Mode styles settle before measuring
     const small = await smallTapTargets(page);
+    const kidsClass = await page.evaluate(() => document.documentElement.classList.contains('is-kids-mode'));
     if (small.length) {
       recordFinding(test.info(), {
         app: config.app,
         check: 'tablet.tap-targets',
         severity: 'p2',
         title: `${small.length} child-view buttons are smaller than ${MIN_TAP_TARGET_PX}px`,
-        details: small.slice(0, 15).map((s) => `- ${s.name} (${s.width}×${s.height})`).join('\n'),
+        details: `html.is-kids-mode: ${kidsClass}; viewport ${page.viewportSize()?.width}×${page.viewportSize()?.height}\n` + small.slice(0, 15).map((s) => `- ${s.name} (${s.width}×${s.height})`).join('\n'),
         suggestedFix: `Give child-facing buttons at least a ${MIN_TAP_TARGET_PX}×${MIN_TAP_TARGET_PX}px hit area.`,
       });
     }
