@@ -23,3 +23,6 @@ export function deviceProjects(filter = process.env.QA_DEVICES) {
 }
 
 export const isTablet = (projectName) => DEVICE_MATRIX.find((d) => d.name === projectName)?.group === 'tablet';
+
+/** The native iOS app (WKWebView on capacitor://localhost) is the only target that needs the YouTube relay page. */
+export const isIOS = (projectName) => /^(ipad|iphone)/.test(projectName);

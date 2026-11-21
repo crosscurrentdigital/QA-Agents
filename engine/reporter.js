@@ -49,6 +49,7 @@ export default class QaReporter {
     const repo = process.env.QA_REPORT_REPO;
     const token = process.env.GITHUB_TOKEN;
     const toFile = merged.filter((f) => ISSUE_SEVERITIES.has(f.severity));
+    if (process.env.QA_DRY_RUN === '1') return; // summary + findings.json only, no issues
     if (!repo || !token || toFile.length === 0) return;
     const runUrl = process.env.GITHUB_RUN_URL || null;
     try {
