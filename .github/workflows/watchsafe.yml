@@ -9,6 +9,10 @@ on:
         description: 'tablet, phone, or device names (blank = all, tablets first)'
         required: false
         default: ''
+      dry_run:
+        description: 'true = report in the run summary only, file no issues'
+        required: false
+        default: 'false'
 
 concurrency:
   group: watchsafe-qa
@@ -21,6 +25,7 @@ jobs:
     env:
       QA_APP: watchsafe
       QA_DEVICES: ${{ inputs.devices }}
+      QA_DRY_RUN: ${{ inputs.dry_run == 'true' && '1' || '' }}
       QA_WATCHSAFE_PARENT_EMAIL: ${{ secrets.QA_WATCHSAFE_PARENT_EMAIL }}
       QA_WATCHSAFE_PARENT_PASSWORD: ${{ secrets.QA_WATCHSAFE_PARENT_PASSWORD }}
       QA_WATCHSAFE_CHILD_ID: ${{ secrets.QA_WATCHSAFE_CHILD_ID }}
